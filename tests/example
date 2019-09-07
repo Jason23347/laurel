@@ -1,0 +1,12 @@
+#!/bin/bash
+
+host=localhost
+
+testExample() {
+    # request 'GET' $host
+    assertOK
+    
+    return 0
+}
+
+. lib/laurel/laurel-unit
