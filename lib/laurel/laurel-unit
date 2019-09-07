@@ -1,0 +1,255 @@
+#!/bin/bash
+
+[ -v _MODULE_laurelR_UNIT_ ] &&
+    return 0 || _MODULE_laurelR_UNIT_=
+
+check_commands() {
+    local -i _missing=0
+    for item in $*; do
+        command -v $item >/dev/null 2>&1 ||
+            (echo "laurel-unit: command $item is required" &&
+                _missing+=1)
+    done
+
+    return $_missing
+}
+
+# command dependencies
+check_commands jq curl
+[ $? -ne 0 ] && return 1
+unset check_commands
+
+_LAUREL_HEADERS=
+_LAUREL_RESPONSE=
+
+request() {
+    if [ $# -lt 2 ]; then
+        echo "laurel: $FUNCNAME() requires at least two arguments; $# given" >&2
+        return 1
+    fi
+    _LAUREL_HEADERS=$(curl -sIX "$@")
+    _LAUREL_RESPONSE=$(curl -sX "$@")
+}
+
+assertSomething() {
+    # shellcheck disable=SC2090
+    ${_SHUNIT_LINENO_}
+    if [ $# -lt 2 -o $# -gt 3 ]; then
+        _shunit_error "$FUNCNAME() requires two or three arguments; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 3 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    # diff
+    shunit_expected_=$1
+    shunit_actual_=$2
+
+    shunit_return=${SHUNIT_TRUE}
+    #diff
+    if [ "${shunit_expected_}" = "${shunit_actual_}" ]; then
+        _shunit_assertPass
+    else
+        #diff
+        failNotEquals "${shunit_message_}" "${shunit_expected_}" "${shunit_actual_}"
+        shunit_return=${SHUNIT_FALSE}
+    fi
+
+    unset shunit_message_ shunit_expected_ shunit_actual_
+    return ${shunit_return}
+}
+
+assertSee() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    elif [ $# -ne 1 ]; then
+        _shunit_error "$FUNCNAME() requires one argument; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 3 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    shunit_string_=$1
+
+    shunit_return=${SHUNIT_TRUE}
+    if echo "$_LAUREL_RESPONSE" |
+        grep "$shunit_string_" >/dev/null 2>&1; then
+        _shunit_assertPass
+    else
+        failNotFound "${shunit_message_}" "${shunit_string_}"
+        shunit_return=${SHUNIT_FALSE}
+    fi
+
+    unset shunit_message_ shunit_expected_ shunit_actual_
+    return ${shunit_return}
+}
+
+assertDontSee() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    elif [ $# -ne 1 ]; then
+        _shunit_error "$FUNCNAME() requires one argument; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 3 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    shunit_string_=$1
+
+    shunit_return=${SHUNIT_TRUE}
+    if ! echo "$_LAUREL_RESPONSE" |
+        grep "$shunit_string_" >/dev/null 2>&1; then
+        _shunit_assertPass
+    else
+        failNotFound "${shunit_message_}" "${shunit_string_}"
+        shunit_return=${SHUNIT_FALSE}
+    fi
+
+    unset shunit_message_ shunit_expected_ shunit_actual_
+    return ${shunit_return}
+}
+
+assertJson() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    elif [ $# -ne 1 ]; then
+        _shunit_error "$FUNCNAME() requires one argument; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 3 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    shunit_string_=$1
+
+    shunit_return=${SHUNIT_TRUE}
+    local shunit_result_=$(echo "$_LAUREL_RESPONSE" |
+        jq "..|($shunit_string_)?|. != null" |
+        grep 'true')
+    >/dev/null 2>&1
+    if [ "$shunit_result_" != "" ]; then
+        _shunit_assertPass
+    else
+        failNotFound "${shunit_message_}" "${shunit_string_}"
+        shunit_return=${SHUNIT_FALSE}
+    fi
+
+    unset shunit_message_ shunit_expected_ shunit_actual_
+    return ${shunit_return}
+}
+
+assertOK() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 2 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    assertStatus "${shunit_message_}" "200"
+    shunit_return=$?
+
+    unset shunit_message_
+    return ${shunit_return}
+}
+
+assertNotFound() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 2 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    assertStatus "${shunit_message_}" "404"
+    shunit_return=$?
+
+    unset shunit_message_
+    return ${shunit_return}
+}
+
+assertForbidden() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 2 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    assertStatus "${shunit_message_}" "403"
+    shunit_return=$?
+
+    unset shunit_message_
+    return ${shunit_return}
+}
+
+assertStatus() {
+    ${_SHUNIT_LINENO_}
+    if [ $# -lt 1 -o $# -gt 2 ]; then
+        _shunit_error "$FUNCNAME() requires one or two arguments; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 2 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    status_code=$(echo "$_LAUREL_HEADERS" | head -n1 | awk '{print $2}')
+
+    assertEquals "${shunit_message_}" "$1" "$status_code"
+    shunit_return=$?
+
+    unset shunit_message_ status_code
+    return ${shunit_return}
+}
+
+. lib/shunit2/shunit2

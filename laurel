@@ -1,0 +1,7 @@
+#!/bin/bash
+
+__laurel_DIR__=$(pwd)
+
+. lib/laurel/kernel
+
+laurel::handle "$*"

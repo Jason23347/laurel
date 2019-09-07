@@ -1,0 +1,42 @@
+#!/bin/bash
+
+[ -v _MODULE_laurel_KERNEL_ ] &&
+    return 0 || _MODULE_laurel_KERNEL_=
+
+laurel::handle() {
+    local tmp="$1"
+    shift
+
+    laurel::commands.${tmp//:/ } "$*"
+}
+
+laurel::commands.make() {
+    local file_type="$1"
+    shift
+
+    file_path="$__laurel_DIR__/lib/laurel/templates/$file_type"
+    [ -f $file_path ] || return 1
+
+    case $file_type in
+    test)
+        cat $file_path >"$__laurel_DIR__/tests/$1"
+        echo $?
+        ;;
+    esac
+}
+
+laurel::commands.test() {
+    case $1 in
+    run)
+        chmod +x $__laurel_DIR__/tests/*
+        for script in $(ls $__laurel_DIR__/tests); do
+            echo testing file $script:
+            echo
+
+            $__laurel_DIR__/tests/$script
+
+            echo
+        done
+        ;;
+    esac
+}

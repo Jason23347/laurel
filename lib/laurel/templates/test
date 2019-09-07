@@ -1,0 +1,8 @@
+#!/bin/bash
+
+testExample() {
+    assertEquals 1 1
+    return 0
+}
+
+. lib/laurel/laurel-unit
