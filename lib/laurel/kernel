@@ -28,12 +28,12 @@ laurel::commands.make() {
 laurel::commands.test() {
     case $1 in
     run)
-        chmod +x $__laurel_DIR__/tests/*
-        for script in $(ls $__laurel_DIR__/tests); do
+        for script in $(find $__laurel_DIR__/tests -type f); do
+            chmod +x $script
             echo testing file $script:
             echo
 
-            $__laurel_DIR__/tests/$script
+            $script
 
             echo
         done
