@@ -1,7 +1,7 @@
 #!/bin/bash
 
-[ -v _MODULE_laurel_KERNEL_ ] &&
-    return 0 || _MODULE_laurel_KERNEL_=
+[ -v _MODULE_LAUREL_KERNEL_ ] &&
+    return 0 || _MODULE_LAUREL_KERNEL_=
 
 laurel::handle() {
     local tmp="$1"
@@ -30,7 +30,7 @@ laurel::commands.test() {
     run)
         for script in $(find $__laurel_DIR__/tests -type f); do
             chmod +x $script
-            echo testing file $script:
+            echo testing file ${script##$__laurel_DIR__}:
             echo
 
             $script

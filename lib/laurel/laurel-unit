@@ -19,6 +19,9 @@ check_commands jq curl
 [ $? -ne 0 ] && return 1
 unset check_commands
 
+mkdir -p /tmp/laurel
+tmp_file=/tmp/laurel/$(date | md5sum | awk '{print $1}')
+
 _LAUREL_HEADERS=
 _LAUREL_RESPONSE=
 
@@ -27,8 +30,8 @@ request() {
         echo "laurel: $FUNCNAME() requires at least two arguments; $# given" >&2
         return 1
     fi
-    _LAUREL_HEADERS=$(curl -sIX "$@")
-    _LAUREL_RESPONSE=$(curl -sX "$@")
+    _LAUREL_RESPONSE=$(curl -D $tmp_file -sX "$@")
+    _LAUREL_HEADERS=$(cat $tmp_file)
 }
 
 assertSomething() {
@@ -153,6 +156,42 @@ assertJson() {
     shunit_return=${SHUNIT_TRUE}
     local shunit_result_=$(echo "$_LAUREL_RESPONSE" |
         jq "..|($shunit_string_)?|. != null" |
+        grep 'true')
+    >/dev/null 2>&1
+    if [ "$shunit_result_" != "" ]; then
+        _shunit_assertPass
+    else
+        failNotFound "${shunit_message_}" "${shunit_string_}"
+        shunit_return=${SHUNIT_FALSE}
+    fi
+
+    unset shunit_message_ shunit_expected_ shunit_actual_
+    return ${shunit_return}
+}
+
+assertJsonRestrict() {
+    ${_SHUNIT_LINENO_}
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    elif [ $# -ne 1 ]; then
+        _shunit_error "$FUNCNAME() requires one argument; $# given"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    fi
+    _shunit_shouldSkip && return ${SHUNIT_TRUE}
+
+    shunit_message_=${__shunit_lineno}
+    if [ $# -eq 3 ]; then
+        shunit_message_="${shunit_message_}$1"
+        shift
+    fi
+    shunit_string_=$1
+
+    shunit_return=${SHUNIT_TRUE}
+    local shunit_result_=$(echo "$_LAUREL_RESPONSE" |
+        jq "$shunit_string_ | . != null" |
         grep 'true')
     >/dev/null 2>&1
     if [ "$shunit_result_" != "" ]; then
