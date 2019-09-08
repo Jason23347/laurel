@@ -30,6 +30,10 @@ request() {
         echo "laurel: $FUNCNAME() requires at least two arguments; $# given" >&2
         return 1
     fi
+
+    _LAUREL_HEADERS=
+    _LAUREL_RESPONSE=
+
     _LAUREL_RESPONSE=$(curl -D $tmp_file -sX "$@")
     _LAUREL_HEADERS=$(cat $tmp_file)
 }
