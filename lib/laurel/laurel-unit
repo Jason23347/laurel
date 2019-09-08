@@ -38,36 +38,37 @@ request() {
     _LAUREL_HEADERS=$(cat $tmp_file)
 }
 
-assertSomething() {
-    # shellcheck disable=SC2090
+assertHeader() {
     ${_SHUNIT_LINENO_}
-    if [ $# -lt 2 -o $# -gt 3 ]; then
+    if [ "$_LAUREL_HEADERS" == "" ]; then
+        _shunit_error "$FUNCNAME() requires request() excuted first!"
+        _shunit_assertFail
+        return ${SHUNIT_ERROR}
+    elif [ $# -lt 2 -o $# -gt 3 ]; then
         _shunit_error "$FUNCNAME() requires two or three arguments; $# given"
         _shunit_assertFail
         return ${SHUNIT_ERROR}
     fi
     _shunit_shouldSkip && return ${SHUNIT_TRUE}
 
-    shunit_message_=${__shunit_lineno}
+    shunit_message_=${__shunit_lineno}Header:
     if [ $# -eq 3 ]; then
         shunit_message_="${shunit_message_}$1"
         shift
     fi
-    # diff
-    shunit_expected_=$1
-    shunit_actual_=$2
+    shunit_header_=$1
+    shunit_header_content_=$2
 
     shunit_return=${SHUNIT_TRUE}
-    #diff
-    if [ "${shunit_expected_}" = "${shunit_actual_}" ]; then
+    if echo "$_LAUREL_HEADERS" |
+        grep "$shunit_header_: $shunit_header_content_" >/dev/null 2>&1; then
         _shunit_assertPass
     else
-        #diff
-        failNotEquals "${shunit_message_}" "${shunit_expected_}" "${shunit_actual_}"
+        failNotFound "${shunit_message_}" "${shunit_header_}"
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_expected_ shunit_actual_
+    unset shunit_message_ shunit_header_ shunit_content_
     return ${shunit_return}
 }
 
@@ -100,7 +101,7 @@ assertSee() {
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_expected_ shunit_actual_
+    unset shunit_message_ shunit_string_
     return ${shunit_return}
 }
 
@@ -133,7 +134,7 @@ assertDontSee() {
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_expected_ shunit_actual_
+    unset shunit_message_ shunit_string_
     return ${shunit_return}
 }
 
@@ -169,7 +170,7 @@ assertJson() {
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_expected_ shunit_actual_
+    unset shunit_message_ shunit_string_
     return ${shunit_return}
 }
 
@@ -205,7 +206,7 @@ assertJsonRestrict() {
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_expected_ shunit_actual_
+    unset shunit_message_ shunit_string_
     return ${shunit_return}
 }
 
