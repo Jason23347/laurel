@@ -1,0 +1,22 @@
+#!/bin/bash
+
+[ -v _MODULE_LAUREL_HELPERS_ ] &&
+    return 0 || _MODULE_LAUREL_HELPERS_=
+
+# parse json from response
+json.get() {
+    echo $_LAUREL_RESPONSE | jq "$1"
+    return $?
+}
+
+# parse json
+json.parse() {
+    echo $1 | jq -r '. | tojson'
+    return $?
+}
+
+# send XMLHttpRquest
+xhr() {
+    request "$@" \
+        -H 'X-Requested-With: XMLHttpRequest'
+}
