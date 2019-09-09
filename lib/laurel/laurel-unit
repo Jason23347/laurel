@@ -1,16 +1,18 @@
 #!/bin/bash
 
-[ -v _MODULE_laurelR_UNIT_ ] &&
-    return 0 || _MODULE_laurelR_UNIT_=
+[ -v _MODULE_LAUREL_UNIT_ ] &&
+    return 0 || _MODULE_LAUREL_UNIT_=
 
+# check if commands are not installed
 check_commands() {
     local -i _missing=0
     for item in $*; do
         command -v $item >/dev/null 2>&1 ||
-            (echo "laurel-unit: command $item is required" &&
+            (echo "laurel-unit: command $item is required" >&2 &&
                 _missing+=1)
     done
 
+    # num of the commands missing
     return $_missing
 }
 
@@ -19,12 +21,17 @@ check_commands jq curl
 [ $? -ne 0 ] && return 1
 unset check_commands
 
+# make tmp file to store header info
 mkdir -p /tmp/laurel
 tmp_file=/tmp/laurel/$(date | md5sum | awk '{print $1}')
 
+# init
 _LAUREL_HEADERS=
 _LAUREL_RESPONSE=
 
+. lib/laurel/helpers
+
+# send request, then store headers and response
 request() {
     if [ $# -lt 2 ]; then
         echo "laurel: $FUNCNAME() requires at least two arguments; $# given" >&2
@@ -36,6 +43,8 @@ request() {
 
     _LAUREL_RESPONSE=$(curl -D $tmp_file -sX "$@")
     _LAUREL_HEADERS=$(cat $tmp_file)
+
+    # did not delete tmp file for futher use
 }
 
 assertHeader() {
@@ -68,7 +77,7 @@ assertHeader() {
         shunit_return=${SHUNIT_FALSE}
     fi
 
-    unset shunit_message_ shunit_header_ shunit_content_
+    unset shunit_message_ shunit_header_ shunit_header_content_
     return ${shunit_return}
 }
 
